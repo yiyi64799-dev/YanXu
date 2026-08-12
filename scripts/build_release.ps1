@@ -4,10 +4,16 @@
     [string]$Channel = 'stable',
     [string]$ReleaseNotes = '稳定性与体验更新',
     [string]$MinSupportedAndroid = '2.1.0',
-    [string]$PythonPath = 'python'
+    [string]$PythonPath = ''
 )
 $ErrorActionPreference = 'Stop'
 $workspace = Split-Path -Parent $PSScriptRoot
+$bundledPython = Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'
+if ([string]::IsNullOrWhiteSpace($PythonPath)) {
+    $PythonPath = if (Test-Path -LiteralPath $bundledPython) { $bundledPython } else { 'python' }
+}
+& $PythonPath -c "import PyQt5.QtCore, pkgutil" 2>$null
+if ($LASTEXITCODE -ne 0) { throw '所选 Python 无法加载 PyQt5.QtCore 与 pkgutil，已停止以避免生成损坏安装包。' }
 $output = Join-Path $workspace "artifacts\v$Version"
 if (Test-Path -LiteralPath $output) { throw "输出目录已存在，请先归档后再构建：$output" }
 New-Item -ItemType Directory -Path $output | Out-Null
