@@ -10,6 +10,7 @@ YanXu is a calm research, learning, and project workspace for graduate students 
 
 - Today dashboard, tasks, projects, spaced review, Inbox, calendar, focus sessions, and weekly review
 - Account-based synchronization between Windows and Android
+- Password sign-in, passwordless email Magic Link, and in-app password renewal
 - Shared tasks/projects for two mobile members; private reviews, Inbox items, and focus sessions
 - Offline cache and soft-delete synchronization
 - One Supabase Storage `manifest.json` for desktop and Android updates
@@ -30,6 +31,6 @@ The repository contains only public client code and migrations. Never commit a S
 3. Enter your Supabase Project URL and Publishable key in the app. Never use a `service_role` key in a client.
 4. Build a release with `scripts/build_release.ps1`, then upload the packages and manifest with `scripts/publish_release.ps1`.
 
-Current version: `2.2.0`.
+Current version: `2.2.2`.
 
 > The one-time move from the old Android debug build to production v2.2.0 requires uninstalling the debug app after syncing. Subsequent production releases update in place.
