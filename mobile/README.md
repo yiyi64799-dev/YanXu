@@ -12,7 +12,7 @@ Focus sessions, and weekly reviews remain private to each account.
 3. In **Project Settings > API**, copy the Project URL and the publishable key (or legacy anon key).
 4. Do not put a `service_role` or secret key into this app.
 
-On first launch, the app asks for the Project URL and publishable key. Each partner then creates a separate email/password account. The first person creates a couple space and shares its eight-character invite code; the second person joins with that code.
+On first launch, the app asks for the Project URL and publishable key. Each partner then creates a separate account and can sign in with a password or the default Supabase Magic Link flow documented in `../SUPABASE_SETUP_CN.md`. The first person creates a couple space and shares its eight-character invite code; the second person joins with that code.
 
 ## Data boundaries
 

@@ -10,6 +10,7 @@
 
 - 今日 Dashboard、任务、项目、复习、Inbox、日历、专注与周回顾
 - 同一账号在 Windows 与 Android 之间同步
+- 支持密码登录、邮箱 Magic Link 免密码登录和登录后设置新密码
 - 手机端两人共享任务与项目；个人复习、Inbox、专注记录保持私有
 - 离线缓存与软删除同步，降低数据回弹风险
 - 桌面端与 Android 共用 Supabase Storage `manifest.json` 检查更新
@@ -30,6 +31,6 @@
 3. 在客户端填写 Supabase Project URL 和 Publishable key；不要填写 `service_role`。
 4. 发布新版本时使用 `scripts/build_release.ps1` 生成两个安装包和统一清单，再使用 `scripts/publish_release.ps1` 上传。
 
-当前版本：`2.2.0`。
+当前版本：`2.2.2`。
 
 > Android 从旧 Debug 包迁移到 v2.2.0 正式版时需卸载旧包一次；请先同步数据。此后正式版本可持续应用内更新。
