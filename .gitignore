@@ -1,0 +1,48 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.docx
+Focus Calendar.cmd
+.agents/
+backups/
+keystore.properties
+**/google-services.json
+**/*service-role*
+**/*service_role*
+
+# Python
+__pycache__/
+*.py[cod]
+.codex_pycache*/
+.build_deps/
+build*/
+dist/
+release*/
+
+# Node / Android
+mobile/node_modules/
+mobile/dist/
+mobile_web_build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/build/
+*.apk
+*.aab
+
+# Local SDKs, caches and generated release artifacts
+.toolchains/
+.test_localappdata/
+.test_sync_localappdata/
+artifacts/
+publishing/out/
+
+# User data and editor files
+*.log
+*.tmp
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

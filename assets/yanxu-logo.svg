@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">研序 YanXu</title>
+  <desc id="desc">A research notebook with an ordered progress path, based on the MIT-licensed Tabler notebook icon.</desc>
+  <rect width="1024" height="1024" rx="224" fill="#176B5B"/>
+  <path d="M356 250h320c70 0 108 40 108 108v308c0 70-39 108-108 108H326c-48 0-86-38-86-86V336c0-48 38-86 86-86h30z" fill="none" stroke="#FFFFFF" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M374 250v524" fill="none" stroke="#FFFFFF" stroke-width="58" stroke-linecap="round"/>
+  <circle cx="498" cy="430" r="25" fill="#BFE7DA"/>
+  <circle cx="498" cy="512" r="25" fill="#BFE7DA"/>
+  <circle cx="498" cy="594" r="25" fill="#BFE7DA"/>
+  <path d="M548 430h130M548 512h98M548 594h150" fill="none" stroke="#FFFFFF" stroke-width="38" stroke-linecap="round"/>
+</svg>

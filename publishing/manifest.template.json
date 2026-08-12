@@ -1,0 +1,16 @@
+{
+  "version": "2.2.0",
+  "channel": "stable",
+  "release_notes": "更新说明",
+  "published_at": "2026-08-12T12:00:00Z",
+  "desktop": {
+    "url": "https://YOUR_PROJECT.supabase.co/storage/v1/object/public/yanxu-releases/YanXu-2.2.0-windows.zip",
+    "sha256": "64位小写十六进制哈希"
+  },
+  "android": {
+    "url": "https://YOUR_PROJECT.supabase.co/storage/v1/object/public/yanxu-releases/YanXu-2.2.0.apk",
+    "sha256": "64位小写十六进制哈希",
+    "min_supported_version": "2.1.0"
+  }
+}
+
