@@ -6,7 +6,9 @@ a = Analysis(
     pathex=['.build_deps'],
     binaries=[],
     datas=[('assets/yanxu-logo.svg', 'assets'), ('assets/yanxu-logo-1024.png', 'assets')],
-    hiddenimports=[],
+    # PyQt5 imports pkgutil while initializing. Some embedded Python
+    # distributions do not expose that dependency to static analysis.
+    hiddenimports=['pkgutil'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
