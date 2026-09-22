@@ -1,5 +1,18 @@
 # Installation and build
 
+## Current desktop: 2.3.1 local preview
+
+No login or Supabase setup is needed. With Python 3.12, install the dependencies and run `python yanxu_desktop.py` from the repository root:
+
+```powershell
+python -m pip install -r requirements-desktop.txt
+python -m PyInstaller --distpath release-desktop --workpath build-desktop YanXuDesktop.spec
+```
+
+Keep `YanXu.exe` together with `_internal`. Use a fresh output directory rather than replacing a running build.
+
+**The remaining instructions describe the legacy cross-device client. Older GitHub Releases are not the 2.3.1 desktop preview.**
+
 ## Windows
 
 Download `YanXu-<version>-windows.zip` from GitHub Releases, extract it into its own directory, and run `YanXu.exe`. Keep the `_internal` directory next to the executable.
