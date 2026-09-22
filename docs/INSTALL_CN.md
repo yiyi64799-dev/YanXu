@@ -1,5 +1,18 @@
 # 安装与构建
 
+## 当前电脑版：2.3.1 本地预览
+
+新版无需配置 Supabase 或登录。使用 Python 3.12，在仓库根目录安装依赖后运行 `python yanxu_desktop.py`：
+
+```powershell
+python -m pip install -r requirements-desktop.txt
+python -m PyInstaller --distpath release-desktop --workpath build-desktop YanXuDesktop.spec
+```
+
+保留生成目录中的 `YanXu.exe` 与 `_internal`。构建请使用新的输出目录，避免覆盖正在运行的版本。参见[新版使用说明](DESKTOP_LOCAL_CN.md)。
+
+**下文是旧版跨端客户端流程，不适用于新版本地电脑版。旧 GitHub Releases 不代表本轮新版。**
+
 ## Windows 用户
 
 从 GitHub Releases 下载 `YanXu-<版本>-windows.zip`，解压到独立目录后运行 `YanXu.exe`。不要只复制 EXE；`_internal` 目录是运行所需组件。

@@ -1,35 +1,87 @@
 # YanXu
 
-YanXu is a calm research, learning, and project workspace for graduate students and long-term learners. Windows and Android synchronize through the same Supabase account, while the mobile app also supports a two-person shared space.
+A calm personal workspace for research and learning. Keep tasks, project goals, knowledge cards and focus records together—and make the next step clear.
 
-[中文 README](README.md) · [Installation](docs/INSTALL_EN.md) · [Sync and updates](docs/SYNC_AND_UPDATE_EN.md) · [Contributing](CONTRIBUTING.md)
+**Current development version: 2.3.1 desktop preview · Windows · Local-first · No login required.**
 
-![YanXu Today dashboard](docs/images/desktop-today.png)
+[中文](README.md) · [Installation](docs/INSTALL_EN.md) · [Desktop guide (Chinese)](docs/DESKTOP_LOCAL_CN.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
 
-## Highlights
+![Today dashboard](docs/images/desktop-today-v231.png)
 
-- Today dashboard, tasks, projects, spaced review, Inbox, calendar, focus sessions, and weekly review
-- Account-based synchronization between Windows and Android
-- Shared tasks/projects for two mobile members; private reviews, Inbox items, and focus sessions
-- Offline cache and soft-delete synchronization
-- One Supabase Storage `manifest.json` for desktop and Android updates
-- SHA-256 verification before installation; a failed download never replaces the working app
+## Features
 
-## Stack
+- **Today and tasks:** start dates, target dates, completion and undo. Long content opens in a centered detail window without squeezing the dashboard.
+- **Projects:** visible goals, next actions, related tasks and completion counts.
+- **Knowledge cards:** questions, answers, sources and project links. Recall before revealing the answer, then schedule another self-test based on feedback.
+- **Progress journal:** weekly completed tasks, focus time, reflections and a copyable weekly report.
+- **Small start:** suggests an existing actionable task estimated at 15 minutes or less; never changes a task or starts a timer automatically.
+- **Calendar, Inbox and focus:** date-based browsing, idea capture and conversion, start/pause/resume/finish timing.
+- **Local data:** transactional SQLite writes, daily startup backups, export and restore. Legacy cache and records are preserved.
 
-- Windows: Python, PyQt5, PyInstaller
-- Android: TypeScript, Vite, Capacitor 7, and a native Java updater plugin
-- Backend: Supabase Auth, Postgres, and Storage
+## Screenshots
 
-The repository contains only public client code and migrations. Never commit a Supabase `service_role`/secret key, user token, Android signing keystore, or signing passwords.
+Actual application renders with sample data only—no real account or user records.
 
-## Quick start
+### Task details
 
-1. Run `supabase/schema.sql`, `supabase/migrations/20260811_yanxu_v2.sql`, and `supabase/migrations/20260812_yanxu_releases.sql` in the Supabase SQL Editor.
-2. Build or install the clients using the [installation guide](docs/INSTALL_EN.md).
-3. Enter your Supabase Project URL and Publishable key in the app. Never use a `service_role` key in a client.
-4. Build a release with `scripts/build_release.ps1`, then upload the packages and manifest with `scripts/publish_release.ps1`.
+![Independent task details](docs/images/desktop-detail-v231.png)
 
-Current version: `2.2.0`.
+### Project goals
 
-> The one-time move from the old Android debug build to production v2.2.0 requires uninstalling the debug app after syncing. Subsequent production releases update in place.
+![Goals and related tasks](docs/images/desktop-projects-v231.png)
+
+### Knowledge cards
+
+![Knowledge cards and self-testing](docs/images/desktop-knowledge-v231.png)
+
+### Progress journal
+
+![Weekly activity and completed tasks](docs/images/desktop-growth-v231.png)
+
+## Run the desktop app
+
+Validated on Windows with Python 3.12 and PyQt5. From the repository root:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-desktop.txt
+python yanxu_desktop.py
+```
+
+No Supabase account or Android toolchain is needed. Test and package:
+
+```powershell
+python -m unittest discover -s tests -v
+python -m PyInstaller --distpath release-desktop --workpath build-desktop YanXuDesktop.spec
+```
+
+Run `release-desktop/YanXu/YanXu.exe`; retain its `_internal` directory. [GitHub Releases](https://github.com/yiyi64799-dev/YanXu/releases) may still contain older cross-device builds. Source and published binaries do not necessarily share the same version.
+
+## Scope and compatibility
+
+| Component | Status |
+| --- | --- |
+| New desktop entry | `yanxu_desktop.py`, local-first, no login |
+| Legacy cross-device entry | `yanxu_v2_app.py`, retained for compatibility |
+| Android and Supabase | Preserved in `mobile/` and `supabase/`; not upgraded in this iteration |
+| Phone synchronization | **Disabled in the new desktop preview** |
+| Automatic update installation | **Disabled in this preview** to avoid installing an older build |
+
+Data lives in `%LOCALAPPDATA%\YanXu`. First launch backs up and imports the existing local cache without deleting account settings. It does not repeatedly overwrite the new database or download cloud-only records.
+
+Reminders require the app to remain running; closing to the tray is optional. In-progress focus intervals are not yet recovered after a crash. Repeat rules are preserved but recurring tasks are not generated automatically.
+
+## Source layout
+
+```text
+yanxu_desktop.py       Desktop pages and interactions
+yanxu_widgets.py       Navigation and long-text controls
+yanxu_store.py         Local storage, migration and backups
+yanxu_insights.py      Weekly summaries, self-tests and small-task selection
+tests/                Offline, restore, UI and summary tests
+mobile/               Legacy Android client
+supabase/             Legacy schema and migrations
+```
+
+Never commit accounts, user data, tokens, Supabase secret/service-role keys, signing files or build caches. Legacy behavior is documented separately in [Sync and updates](docs/SYNC_AND_UPDATE_EN.md).

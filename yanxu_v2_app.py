@@ -27,7 +27,7 @@ APP_DIR = os.path.join(os.environ.get("LOCALAPPDATA", os.path.abspath(".")), "Ya
 SETTINGS = os.path.join(APP_DIR, "settings.json")
 CACHE = os.path.join(APP_DIR, "v2-cache.json")
 OLD_SETTINGS = os.path.join(os.environ.get("LOCALAPPDATA", os.path.abspath(".")), "FocusCalendar", "settings.json")
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.2.2"
 TOKENS = {
     "canvas": "#F6F8F7", "sidebar": "#F1F6F4", "surface": "#FFFFFF",
     "primary": "#176B5B", "primary_hover": "#125A4C", "primary_soft": "#E7F3EF",
@@ -296,11 +296,68 @@ class Cloud:
             self.settings["supabase_access_token"]=data.get("access_token",""); self.settings["supabase_refresh_token"]=data.get("refresh_token",refresh); save_settings(self.settings); return bool(self.settings["supabase_access_token"])
         except Exception: return False
     def sign_in(self, email, password):
-        data, err = self.request("POST", "/auth/v1/token?grant_type=password", {"email": email, "password": password})
+        data, err = self.auth_request("POST", "/auth/v1/token?grant_type=password", {"email": email, "password": password})
         if err or not data: return err or "登录失败"
+        self.store_session(data, email); return ""
+    def auth_request(self, method, path, payload=None):
+        """Call a public Auth endpoint without leaking or reusing a stale user token."""
+        base = self.settings.get("supabase_url", "").rstrip("/")
+        headers = {"apikey": self.settings.get("supabase_key", ""), "Content-Type": "application/json"}
+        body = None if payload is None else json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        last_error = ""
+        for attempt in range(3):
+            try:
+                req = urllib.request.Request(base + path, data=body, headers=headers, method=method)
+                with urllib.request.urlopen(req, timeout=20, context=ssl.create_default_context()) as response:
+                    raw = response.read().decode("utf-8", "replace")
+                    return json.loads(raw) if raw else None, ""
+            except urllib.error.HTTPError as exc:
+                raw = exc.read().decode("utf-8", "replace")
+                try:
+                    detail = json.loads(raw)
+                    return None, detail.get("msg") or detail.get("message") or detail.get("error_description") or raw
+                except json.JSONDecodeError:
+                    return None, raw or f"HTTP {exc.code}"
+            except (urllib.error.URLError, ssl.SSLError, ConnectionError, OSError) as exc:
+                last_error = str(getattr(exc, "reason", exc))
+                if attempt < 2: time.sleep(0.4)
+        return None, last_error or "网络连接失败"
+    def store_session(self, data, email=""):
         user = data.get("user", {})
-        self.settings.update({"supabase_access_token": data.get("access_token", ""), "supabase_refresh_token": data.get("refresh_token", ""), "supabase_user_id": user.get("id", "")})
-        save_settings(self.settings); return ""
+        self.settings.update({
+            "supabase_access_token": data.get("access_token", ""),
+            "supabase_refresh_token": data.get("refresh_token", ""),
+            "supabase_user_id": user.get("id", ""),
+            "supabase_email": user.get("email") or email or self.settings.get("supabase_email", ""),
+        })
+        save_settings(self.settings)
+    def send_magic_link(self, email):
+        _data, err = self.auth_request("POST", "/auth/v1/otp", {"email": email, "create_user": False})
+        return err
+    def verify_magic_link(self, email, link):
+        try:
+            parsed = urllib.parse.urlparse(link.strip())
+            project = urllib.parse.urlparse(self.settings.get("supabase_url", ""))
+            query = urllib.parse.parse_qs(parsed.query)
+            token_hash = (query.get("token_hash") or query.get("token") or [""])[0]
+            auth_type = (query.get("type") or ["magiclink"])[0]
+        except (TypeError, ValueError):
+            return "登录链接格式不正确"
+        if parsed.scheme != "https" or parsed.hostname != project.hostname or parsed.path.rstrip("/") != "/auth/v1/verify":
+            return "这不是当前研序项目的 Supabase 登录链接"
+        if not token_hash or auth_type not in ("magiclink", "email", "recovery", "signup"):
+            return "登录链接缺少有效的一次性凭据"
+        data, err = self.auth_request("POST", "/auth/v1/verify", {"token_hash": token_hash, "type": auth_type})
+        if err or not data: return err or "登录链接无效或已过期"
+        self.store_session(data, email); return ""
+    def set_password(self, password):
+        data, err = self.request("PUT", "/auth/v1/user", {"password": password})
+        if err: return err
+        if isinstance(data, dict) and data.get("id"):
+            self.settings["supabase_user_id"] = data.get("id")
+            self.settings["supabase_email"] = data.get("email") or self.settings.get("supabase_email", "")
+            save_settings(self.settings)
+        return ""
 
 
 class Editor(QDialog):
@@ -331,6 +388,107 @@ class Editor(QDialog):
         if isinstance(w, QDateEdit): return w.date().toString("yyyy-MM-dd")
         if isinstance(w, QTimeEdit): return w.time().toString("HH:mm")
         return w.text().strip()
+
+
+class AccountDialog(QDialog):
+    """Account recovery and sign-in UI. Secrets are used in memory and never persisted."""
+    def __init__(self, owner):
+        super().__init__(owner); self.owner = owner; self.setWindowTitle("账户与跨端同步"); self.resize(540, 650); self.setMinimumSize(500, 560); self.setMaximumSize(620, 720)
+        root = QVBoxLayout(self); root.setContentsMargins(24, 22, 24, 20); root.setSpacing(12)
+        title = QLabel("账户与跨端同步"); title.setObjectName("SectionTitle"); root.addWidget(title)
+        intro = QLabel("电脑与手机使用同一研序账号。忘记密码时，可通过邮箱登录链接进入原账号，再设置新密码。")
+        intro.setObjectName("BodyMuted"); intro.setWordWrap(True); root.addWidget(intro)
+        self.status = QLabel("已登录" if owner.cloud.ok() else "尚未登录"); self.status.setObjectName("BodyMuted"); self.status.setWordWrap(True); root.addWidget(self.status)
+
+        scroll = QScrollArea(); scroll.setWidgetResizable(True); scroll.setFrameShape(QFrame.NoFrame); scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff); root.addWidget(scroll, 1)
+        host = QWidget(); host.setObjectName("Transparent"); body = QVBoxLayout(host); body.setContentsMargins(2, 4, 6, 4); body.setSpacing(12); scroll.setWidget(host)
+
+        connection = QFrame(); connection.setObjectName("SettingsCard"); form = QFormLayout(connection); form.setContentsMargins(18, 16, 18, 16); form.setSpacing(10)
+        self.url = QLineEdit(owner.settings.get("supabase_url", "")); self.key = QTextEdit(owner.settings.get("supabase_key", "")); self.key.setMaximumHeight(66)
+        self.email = QLineEdit(owner.settings.get("supabase_email", "")); self.email.setPlaceholderText("你的研序登录邮箱")
+        form.addRow("Project URL", self.url); form.addRow("Publishable key", self.key); form.addRow("邮箱", self.email); body.addWidget(connection)
+
+        password_card = QFrame(); password_card.setObjectName("SettingsCard"); password_box = QVBoxLayout(password_card); password_box.setContentsMargins(18, 16, 18, 16); password_box.setSpacing(9)
+        password_title = QLabel("密码登录"); password_title.setObjectName("ModuleTitle"); password_box.addWidget(password_title)
+        self.password = QLineEdit(); self.password.setEchoMode(QLineEdit.Password); self.password.setPlaceholderText("输入现有密码")
+        password_box.addWidget(self.password); login = QPushButton("登录"); login.setObjectName("Primary"); login.clicked.connect(self.password_login); password_box.addWidget(login); body.addWidget(password_card)
+
+        otp_card = QFrame(); otp_card.setObjectName("SettingsCard"); otp_box = QVBoxLayout(otp_card); otp_box.setContentsMargins(18, 16, 18, 16); otp_box.setSpacing(9)
+        otp_title = QLabel("忘记密码或免密码登录"); otp_title.setObjectName("ModuleTitle"); otp_box.addWidget(otp_title)
+        otp_help = QLabel("先发送登录邮件，再复制邮件中“Sign in”的链接地址并粘贴到下方。链接只会用于当前 Supabase 项目的一次性验证。"); otp_help.setObjectName("MetaText"); otp_help.setWordWrap(True); otp_box.addWidget(otp_help)
+        send = QPushButton("发送登录邮件"); send.setObjectName("Secondary"); send.clicked.connect(self.send_magic_link); otp_box.addWidget(send)
+        self.magic_link = QLineEdit(); self.magic_link.setPlaceholderText("粘贴 https://…/auth/v1/verify?... 登录链接")
+        verify = QPushButton("使用邮件链接登录"); verify.setObjectName("Primary"); verify.clicked.connect(self.magic_link_login); otp_box.addWidget(self.magic_link); otp_box.addWidget(verify); body.addWidget(otp_card)
+
+        security = QFrame(); security.setObjectName("SettingsCard"); security_box = QVBoxLayout(security); security_box.setContentsMargins(18, 16, 18, 16); security_box.setSpacing(9)
+        security_title = QLabel("设置新密码"); security_title.setObjectName("ModuleTitle"); security_box.addWidget(security_title)
+        security_help = QLabel("登录成功后可设置。至少 8 位，建议使用密码管理器生成。"); security_help.setObjectName("MetaText"); security_box.addWidget(security_help)
+        self.new_password = QLineEdit(); self.new_password.setEchoMode(QLineEdit.Password); self.new_password.setPlaceholderText("新密码")
+        self.confirm_password = QLineEdit(); self.confirm_password.setEchoMode(QLineEdit.Password); self.confirm_password.setPlaceholderText("再次输入新密码")
+        security_box.addWidget(self.new_password); security_box.addWidget(self.confirm_password)
+        self.set_password_button = QPushButton("保存新密码"); self.set_password_button.setObjectName("Secondary"); self.set_password_button.setEnabled(owner.cloud.ok()); self.set_password_button.clicked.connect(self.set_new_password); security_box.addWidget(self.set_password_button); body.addWidget(security)
+
+        buttons = QHBoxLayout(); save = QPushButton("仅保存连接信息"); save.setObjectName("Tertiary"); save.clicked.connect(lambda: self.save_connection(False)); close = QPushButton("关闭"); close.setObjectName("Secondary"); close.clicked.connect(self.finish); buttons.addWidget(save); buttons.addStretch(); buttons.addWidget(close); root.addLayout(buttons)
+
+    def friendly_error(self, error):
+        text = str(error or "操作失败")
+        lowered = text.lower()
+        if "invalid login credentials" in lowered: return "邮箱或密码不正确。可以改用邮箱验证码登录。"
+        if "token has expired" in lowered or "otp_expired" in lowered: return "登录链接已过期，请重新发送。"
+        if "token is invalid" in lowered or "invalid token" in lowered: return "登录链接无效，请重新发送。"
+        if "email rate limit" in lowered or "over_email_send_rate_limit" in lowered: return "邮件发送过于频繁，请稍后再试。"
+        return text
+
+    def show_status(self, text, failed=False):
+        self.status.setText(text); self.status.setStyleSheet("color: #B9473F;" if failed else "color: #176B5B;")
+
+    def finish(self):
+        self.accept() if self.owner.cloud.ok() else self.reject()
+
+    def save_connection(self, require_email=True):
+        url = self.url.text().strip().rstrip("/")
+        if url and not url.startswith(("https://", "http://")): url = "https://" + url
+        parsed = urllib.parse.urlparse(url)
+        key = self.key.toPlainText().strip(); email = self.email.text().strip()
+        if not parsed.scheme or not parsed.hostname or not key:
+            self.show_status("Project URL 或 Publishable key 不完整。", True); return ""
+        if require_email and ("@" not in email or "." not in email.rsplit("@", 1)[-1]):
+            self.show_status("请输入正确的邮箱地址。", True); return ""
+        self.owner.settings.update({"supabase_url": url, "supabase_key": key, "supabase_email": email})
+        self.owner.cloud = Cloud(self.owner.settings); save_settings(self.owner.settings)
+        if not require_email: self.show_status("连接信息已保存。")
+        return email
+
+    def password_login(self):
+        email = self.save_connection(True); password = self.password.text()
+        if not email: return
+        if not password: return self.show_status("请输入密码。", True)
+        err = self.owner.cloud.sign_in(email, password)
+        if err: return self.show_status(self.friendly_error(err), True)
+        self.password.clear(); self.show_status("登录成功，正在同步原账号数据。"); self.accept()
+
+    def send_magic_link(self):
+        email = self.save_connection(True)
+        if not email: return
+        err = self.owner.cloud.send_magic_link(email)
+        if err: return self.show_status(self.friendly_error(err), True)
+        self.show_status("登录邮件已发送。请复制邮件中“Sign in”的链接地址并粘贴到下方。")
+
+    def magic_link_login(self):
+        email = self.save_connection(True); link = self.magic_link.text().strip()
+        if not email: return
+        if not link: return self.show_status("请粘贴邮件中“Sign in”的链接地址。", True)
+        err = self.owner.cloud.verify_magic_link(email, link)
+        if err: return self.show_status(self.friendly_error(err), True)
+        self.magic_link.clear(); self.set_password_button.setEnabled(True); self.show_status("邮件链接登录成功。现在可以设置新密码，也可以直接关闭。")
+
+    def set_new_password(self):
+        password = self.new_password.text(); confirm = self.confirm_password.text()
+        if len(password) < 8: return self.show_status("新密码至少需要 8 位。", True)
+        if password != confirm: return self.show_status("两次输入的新密码不一致。", True)
+        err = self.owner.cloud.set_password(password)
+        if err: return self.show_status(self.friendly_error(err), True)
+        self.new_password.clear(); self.confirm_password.clear(); self.show_status("新密码已保存。电脑和手机均可使用此密码登录。"); QMessageBox.information(self, "研序 YanXu", "新密码已设置成功。"); self.accept()
 
 
 class YanXu(QMainWindow):
@@ -570,17 +728,12 @@ class YanXu(QMainWindow):
         d=self.dialog("本周回顾",[("highlights","推进与下周三项重点","note","")]);
         if d:self.upsert("weekly_reviews",{"space_id":self.space_id,"owner_id":self.settings.get("supabase_user_id"),"period_start":dt.date.today().isoformat(),"highlights":d.value("highlights"),"next_priorities":[]},None)
     def edit_settings(self):
-        d=self.dialog("同步与账户",[("url","Supabase URL","text",self.settings.get("supabase_url")),("key","Publishable key","note",self.settings.get("supabase_key")),("email","邮箱","text",self.settings.get("supabase_email")),("password","密码（填写后登录）","text","")])
-        if not d:return
-        url=d.value("url").strip().rstrip("/")
-        if url and not url.startswith(("https://","http://")): url="https://"+url
-        parsed=urllib.parse.urlparse(url)
-        if not parsed.scheme or not parsed.hostname: return self.message("Supabase URL 格式不正确，应类似 https://项目编号.supabase.co")
-        self.settings.update({"supabase_url":url,"supabase_key":d.value("key").strip(),"supabase_email":d.value("email").strip()}); self.cloud=Cloud(self.settings)
-        if d.value("password"):
-            err=self.cloud.sign_in(d.value("email"),d.value("password"));
-            if err:return self.message("登录失败："+err)
-        save_settings(self.settings); self.refresh()
+        dialog = AccountDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            self.space_id = self.settings.get("supabase_space_id", "")
+            self.refresh()
+        elif hasattr(self.pages.currentWidget(), "refresh_status"):
+            self.pages.currentWidget().refresh_status()
     def apply_preferences(self):
         self.setStyleSheet(self.style()); self.render(self.pages.currentWidget().property("key"))
 

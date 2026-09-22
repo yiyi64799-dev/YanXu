@@ -1,5 +1,7 @@
 # 跨端同步与应用内更新
 
+> 本文适用于旧版 `yanxu_v2_app.py` 与 Android。2.3.1 本地电脑版暂不启用云同步或自动安装更新，无需执行以下云端配置。新记录不会同步到手机，不要把本预览版发布到旧跨端 manifest。参见[本地电脑版说明](DESKTOP_LOCAL_CN.md)。
+
 ## 同步模型
 
 Windows 和 Android 使用同一 Supabase 项目与同一账号。共享空间内的任务和项目可由两位成员共同查看；复习、Inbox 和专注记录按用户隔离。云端是同步事实来源，本地缓存用于离线读取和暂存。删除使用软删除标记，避免另一端把旧数据重新拉回。
@@ -38,4 +40,3 @@ Remove-Item Env:\SUPABASE_SERVICE_ROLE_KEY
 - Windows 紧急回滚：关闭研序，把损坏目录移走，将最近的 `YanXu.rollback-*` 改回原安装目录名。
 - 线上回滚：不要把 `manifest.json` 指向缺失文件。推荐用旧代码重新构建一个更高版本号的新修复版，上传包后最后更新清单。
 - Android 不应直接发布更低 `versionCode` 的 APK，因为系统通常拒绝降级。应使用旧代码、相同 applicationId、同一签名证书和更高 `versionCode` 构建回滚版。
-
